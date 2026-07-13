@@ -17,6 +17,3 @@ dist/
 
 # OS
 .DS_Store
-
-# Internal agent workspace (not end-user docs)
-.agents_workspace/
