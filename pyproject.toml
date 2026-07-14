@@ -7,7 +7,7 @@ name = "mcp-cassette"
 version = "0.1.0"
 description = "Record/replay and mocking for MCP (Model Context Protocol) agent test suites — vcrpy for MCP."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = { file = "LICENSE" }
 authors = [{ name = "EeHeng Chen", email = "eeheng.chen@gmail.com" }]
 keywords = ["mcp", "testing", "record-replay", "vcr", "pytest", "mock"]
@@ -15,8 +15,6 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Framework :: Pytest",
     "Intended Audience :: Developers",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Testing",
@@ -27,8 +25,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/eehengchen/mcp-cassette"
-Repository = "https://github.com/eehengchen/mcp-cassette"
+Homepage = "https://github.com/cheneeheng/mcp-cassette"
+Repository = "https://github.com/cheneeheng/mcp-cassette"
 
 [project.scripts]
 mcp-cassette = "mcp_cassette.cli:main"
@@ -52,14 +50,14 @@ packages = ["src/mcp_cassette"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py310"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "W"]
 
 [tool.mypy]
 strict = true
-python_version = "3.10"
+python_version = "3.12"
 
 [[tool.mypy.overrides]]
 module = "mcp.*"

@@ -68,9 +68,7 @@ def _resolve_mode(marker_kwargs: dict[str, Any], config: Config) -> Mode:
     return mode  # type: ignore[return-value]
 
 
-def _cassette_path(
-    request: FixtureRequest, marker_kwargs: dict[str, Any]
-) -> Path:
+def _cassette_path(request: FixtureRequest, marker_kwargs: dict[str, Any]) -> Path:
     if "cassette" in marker_kwargs:
         return Path(marker_kwargs["cassette"])
     base_ini = str(request.config.getini("mcp_cassette_dir"))
@@ -94,9 +92,7 @@ def _match_config(marker_kwargs: dict[str, Any]) -> MatchConfig:
 if pytest is not None:
 
     @pytest.fixture
-    def mcp_cassette(
-        request: FixtureRequest, tmp_path: Path
-    ) -> Any:
+    def mcp_cassette(request: FixtureRequest, tmp_path: Path) -> Any:
         """Provide a :class:`CassetteSession` for the test, finalized on teardown.
 
         First run records through the proxy; every run after replays offline. On

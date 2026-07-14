@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import time
 import warnings
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from ..cassette import (
@@ -83,7 +83,7 @@ class SessionRecorder:
     def build(self) -> Cassette:
         """Materialize the buffered session into a :class:`Cassette`."""
         return Cassette(
-            recorded_at=datetime.now(timezone.utc),
+            recorded_at=datetime.now(UTC),
             protocol_version=self._protocol_version,
             server_info=self._server_info,
             messages=list(self._messages),

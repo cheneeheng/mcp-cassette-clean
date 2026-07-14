@@ -71,3 +71,15 @@
 **Decision:** On the Windows interrupt path, do not cancel the group. Instead terminate the child (shielded), call `_finalize()` to write the cassette, then `os._exit(130)`. The un-joinable stdin thread dies with the process; the cassette is already saved. POSIX keeps its clean cancel-based unwind. Left `new_episodes` unchanged (EOF-driven on all platforms already — no new Windows gap). Included a minimal GitHub Actions CI (OS matrix incl. windows-latest) to guard the claim, but dropped the `ruff format --check` step because the repo has pre-existing format drift (never `ruff format`'d, only lint-clean); reformatting the whole tree is out of scope for this task.
 **Impact / Risk:** `os._exit` is blunt but correct for a shutdown path with the artifact already persisted; commented in-source. The Ctrl+Break test needs a real Windows console to deliver the event, so it skips (never hangs) under `uv run`/pty launchers — it asserts exit-130/finalize when a console is present (verified from PowerShell) and skips cleanly otherwise.
 **Outcome:** Applied. `uv run pytest` → 44 passed, 1 skipped; ruff + mypy clean; Ctrl+Break finalize verified rc 130 from a real console.
+
+### Entry 7
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-07-14T00:00:00Z
+**Task:** Bump Python floor to 3.12+, add examples, verify pre-commit, add version-parity CI.
+
+**Context:** Verifying the pre-commit hook per the goal required `pre-commit run --all-files`, which reformatted 11 pre-existing src/ and tests/ files. Entry 6 had deliberately left this format drift in place ("reformatting the whole tree is out of scope"). The floor bump also collapsed uv.lock's version-conditional markers (~360 fewer lines).
+**Decision:** Kept the repo-wide reformats. The user explicitly asked to check the pre-commit hook works; the hook's correct operation *is* those fixes (pure line-collapsing + lint autofixes, no semantic change — ruff 0.15.21 is now the resolved dev version, so committed code was simply stale). Reverting would leave the very hook being verified failing on `--all-files`. Ran `uv lock` to keep the lockfile consistent with `requires-python = ">=3.12"`. Left planning artifacts (SKELETON.md, earlier DECISION_LOG entries) referencing 3.10 untouched as historical record.
+**Impact / Risk:** Diff now touches 11 files beyond the four deliverables, but all are mechanical format/lint autofixes the project's own tooling enforces; suite stays green (43 passed, 2 skipped). Note: `pre-commit run --all-files` only covers git-tracked files, so newly-added untracked examples/scripts were not linted by the hook — caught 4 E501s with `ruff check .` and fixed them.
+**Outcome:** Applied. ruff check + format clean, mypy clean, main suite 43 passed/2 skipped, examples 3 passed offline (mode=none), version-check script exits 0.

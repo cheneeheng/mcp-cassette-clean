@@ -68,6 +68,7 @@ def test_redacts_planted_secret(tmp_path: Path) -> None:
     loaded = Cassette.load(cassette)
     text = json.dumps([m.model_dump() for m in loaded.messages])
     assert "sk-planted-secret" not in text
+
     # the message carrying the secret is flagged
     def _redacted_api_key(m: object) -> bool:
         payload = getattr(m, "payload", None)

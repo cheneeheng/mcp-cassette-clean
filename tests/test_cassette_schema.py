@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -37,7 +37,7 @@ def _message(seq: int, **kw: object) -> Message:
 
 def _cassette() -> Cassette:
     return Cassette(
-        recorded_at=datetime(2026, 7, 5, tzinfo=timezone.utc),
+        recorded_at=datetime(2026, 7, 5, tzinfo=UTC),
         protocol_version="2024-11-05",
         messages=[_message(0), _message(1, sender="server", kind="response")],
     )

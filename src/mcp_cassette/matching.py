@@ -43,9 +43,7 @@ def detect_server_initiated_requests(cassette: Cassette) -> bool:
     replayable in the MVP; :class:`~mcp_cassette.replay.server.ReplayServer` refuses
     such cassettes at load.
     """
-    return any(
-        m.sender == "server" and m.kind == "request" for m in cassette.messages
-    )
+    return any(m.sender == "server" and m.kind == "request" for m in cassette.messages)
 
 
 class Matcher:
@@ -177,9 +175,7 @@ def _delete_pointer(root: Any, pointer: str) -> None:
         if isinstance(root, dict):
             root.pop(pointer, None)
         return
-    tokens = [
-        p.replace("~1", "/").replace("~0", "~") for p in pointer.split("/")[1:]
-    ]
+    tokens = [p.replace("~1", "/").replace("~0", "~") for p in pointer.split("/")[1:]]
     if not tokens:
         return
     node = root

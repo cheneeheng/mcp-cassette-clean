@@ -10,7 +10,7 @@ mcp-cassette operates at the **transport level** (newline-delimited JSON-RPC ove
 uv add mcp-cassette        # or: pip install mcp-cassette
 ```
 
-Python ≥ 3.10. Linux, macOS, and Windows supported.
+Python ≥ 3.12. Linux, macOS, and Windows supported.
 
 ## The pytest fixture (the main surface)
 

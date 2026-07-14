@@ -85,9 +85,7 @@ class NewEpisodesProxy:
             client_out = stdout_stream()
             our_err = stderr_stream()
             async with anyio.create_task_group() as tg:
-                tg.start_soon(
-                    self._client_loop, client_in, client_out, process.stdin
-                )
+                tg.start_soon(self._client_loop, client_in, client_out, process.stdin)
                 tg.start_soon(self._server_loop, process.stdout, client_out)
                 tg.start_soon(self._forward_stderr, process.stderr, our_err)
             await process.wait()

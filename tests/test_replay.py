@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from scripted_client import (
@@ -145,7 +145,7 @@ def test_sampling_cassette_refused(tmp_path: Path) -> None:
     # Hand-build a cassette with a server-initiated request (sampling/elicitation).
     cassette = tmp_path / "sampling.json"
     Cassette(
-        recorded_at=datetime(2026, 7, 5, tzinfo=timezone.utc),
+        recorded_at=datetime(2026, 7, 5, tzinfo=UTC),
         messages=[
             Message(
                 seq=0,

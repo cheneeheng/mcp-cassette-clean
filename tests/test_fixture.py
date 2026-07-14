@@ -166,9 +166,7 @@ def test_marker_overrides_ini(pytester: pytest.Pytester, monkeypatch) -> None:  
     pytester.runpytest_inprocess().assert_outcomes(passed=1)
 
 
-def test_parametrized_paths_are_unique(
-    pytester: pytest.Pytester, monkeypatch
-) -> None:  # type: ignore[no-untyped-def]
+def test_parametrized_paths_are_unique(pytester: pytest.Pytester, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.delenv("MCP_CASSETTE_MODE", raising=False)
     pytester.makepyfile(
         """

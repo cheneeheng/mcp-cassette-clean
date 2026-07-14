@@ -61,9 +61,7 @@ class ReplayServer:
         """
         self.report_path = report_path
         if detect_server_initiated_requests(cassette):
-            raise UnsupportedCassetteFeature(
-                "server-initiated requests; see roadmap"
-            )
+            raise UnsupportedCassetteFeature("server-initiated requests; see roadmap")
         self.cassette = cassette
         self.config = match or MatchConfig()
         self._matcher = Matcher(cassette, self.config)
@@ -117,9 +115,7 @@ class ReplayServer:
             await self._handle_request(obj, out)
         # notifications and stray client responses need no reply
 
-    async def _handle_request(
-        self, obj: dict[str, Any], out: ByteSendStream
-    ) -> None:
+    async def _handle_request(self, obj: dict[str, Any], out: ByteSendStream) -> None:
         method = obj.get("method")
         msg_id = obj.get("id")
         if method == "initialize":

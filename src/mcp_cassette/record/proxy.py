@@ -76,9 +76,7 @@ class StdioRecordingProxy:
                 try:
                     async with anyio.create_task_group() as tg:
                         tg.start_soon(self._watch_signals, tg.cancel_scope, process)
-                        tg.start_soon(
-                            self._client_to_server, client_in, process.stdin
-                        )
+                        tg.start_soon(self._client_to_server, client_in, process.stdin)
                         tg.start_soon(
                             self._server_to_client,
                             process.stdout,
