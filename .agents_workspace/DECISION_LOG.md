@@ -192,3 +192,27 @@ untested.
 **Outcome:** 262 passed / 3 skipped; every module 100% (statements and branches)
 except record/proxy.py 120-122, the documented POSIX-only lines covered by the
 POSIX CI legs. ruff and mypy --strict clean.
+
+### Entry 13
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-07-18T00:00:00Z
+**Task:** Update examples for v2 (HTTP transport, sampling replay, lint)
+
+**Context:** While wiring the lint README demo, `mcp-cassette lint --baseline` crashed on Windows (exit 1 traceback): the R002 message uses U+2212 MINUS SIGN, which cp1252 consoles cannot encode. Fixing src/ is outside the literal "examples" scope.
+**Decision:** Made the one-character fix in `src/mcp_cassette/lint/rules.py` (U+2212 -> ASCII "-") and updated the matching assertion in `tests/unit/test_lint.py`, because the documented example is broken on Windows without it. Left the broader risk (non-ASCII third-party description text in the R002 diff can still crash cp1252 consoles) unfixed and flagged it to the user.
+**Impact / Risk:** Minimal; output-only change. Broader encoding hardening (e.g. stdout reconfigure in cli.py) deliberately not done.
+**Outcome:** `lint --baseline` exits 4 as documented on Windows; test_lint.py green.
+
+### Entry 14
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-07-18T00:00:05Z
+**Task:** Lint demo cassettes for examples
+
+**Context:** The lint demo needs a cassette with error-severity findings; no example server has a poisoned description, and adding a dedicated malicious server file felt like scope bloat.
+**Decision:** Recorded a clean `tools.mcp.json` via the CLI pipe, then committed `injected.mcp.json` as an edited copy with one deliberately poisoned description (ASCII-only, matching three R001 patterns). README states it is a doctored copy and how to regenerate both. This also gives the R002 baseline-drift demo for free (clean vs poisoned pair).
+**Impact / Risk:** The injected cassette is hand-edited, not a genuine recording; documented as such.
+**Outcome:** `lint tools.mcp.json` exits 0; `lint injected.mcp.json` exits 4 (3x R001); with `--baseline` adds R002 with a unified diff.
