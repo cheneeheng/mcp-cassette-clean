@@ -125,21 +125,77 @@ your agent, not `printf` — the fixture just hands it `mcp-cassette record ... 
 ### Over HTTP (v2)
 
 The HTTP flavors take a URL instead of a command, and *serve* one instead of speaking
-stdio — drive them with any HTTP client (see `mcp_http_client.py`):
+stdio — so unlike the pipes above, driving them by hand takes an HTTP client. The
+bundled `mcp_http_client.py` is exactly that. Run everything below **from the
+`examples/` directory** so the `python -c` imports resolve; on Windows, run each
+`&`-backgrounded command in its own terminal instead (the snippets themselves work
+unchanged).
+
+**Record.** Start the "remote" server, put the recording proxy in front of it, and
+send a session *through the proxy*. `--port` pins the proxy's port so the client
+knows where to go; `--max-idle 5` finalizes the cassette and exits the proxy after
+five quiet seconds, so no Ctrl+C is needed — just don't dawdle before sending
+traffic, or raise the value:
 
 ```bash
-python examples/echo_http_server.py --port 8901 &          # the "remote" server
+python echo_http_server.py --port 8901 &                   # the "remote" server
 
-mcp-cassette record --cassette demo-http.mcp.json --url http://127.0.0.1:8901/mcp
-# -> mcp-cassette: recording at http://127.0.0.1:<port>/mcp  — point the client there
+mcp-cassette record --cassette demo-http.mcp.json \
+  --url http://127.0.0.1:8901/mcp --port 8902 --max-idle 5 &
+# -> mcp-cassette: recording at http://127.0.0.1:8902/mcp -> point the agent there
 
-mcp-cassette serve demo-http.mcp.json                      # transport inferred: http
-# -> mcp-cassette: replaying at http://127.0.0.1:<port>/mcp
+# simulate the agent: a scripted session against the PROXY (8902), not the server
+python -c "
+from mcp_client import initialize, tool_call
+from mcp_http_client import run
+for obj in run('http://127.0.0.1:8902/mcp',
+               [*initialize(), tool_call(2, 'add', {'a': 2, 'b': 3})]):
+    print(obj)
+"
+
+# ~5 idle seconds later the proxy exits and writes the cassette
+mcp-cassette inspect demo-http.mcp.json
 ```
 
-One protocol note when hand-rolling a client: the replay server issues an
-`Mcp-Session-Id` header on the `initialize` response and (per the Streamable HTTP
-spec) answers `404` to any later request that doesn't echo it back.
+**Replay.** Kill the real server (`kill %1`) — replay never contacts it. `serve`
+infers the transport from the cassette and stands up a local mock HTTP server;
+drive it with the *same* client at the *same* URL, offline:
+
+```bash
+mcp-cassette serve demo-http.mcp.json --port 8902 &
+# -> mcp-cassette: replaying at http://127.0.0.1:8902/mcp
+
+python -c "
+from mcp_client import initialize, tool_call
+from mcp_http_client import run
+for obj in run('http://127.0.0.1:8902/mcp',
+               [*initialize(), tool_call(2, 'add', {'a': 2, 'b': 3})]):
+    print(obj)
+"
+
+kill %2    # replay serves until interrupted; stop it when done
+```
+
+What a client has to get right (`mcp_http_client.py` does all of this, ~20 lines):
+
+- POST each JSON-RPC object to `/mcp` with `Content-Type: application/json` and
+  `Accept: application/json, text/event-stream`.
+- Capture the `Mcp-Session-Id` header from the `initialize` response and echo it on
+  every later request — per the Streamable HTTP spec the replay server answers `404`
+  without it.
+- Requests get a JSON body back; notifications and client responses get a bodyless
+  `202`.
+
+The same handshake in raw `curl`, to see the session mechanics on the wire:
+
+```bash
+curl -si http://127.0.0.1:8902/mcp \
+  -H 'content-type: application/json' \
+  -H 'accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"curl","version":"1.0"}}}'
+# note the mcp-session-id response header; every later request must send it back:
+#   -H 'mcp-session-id: <value from above>'
+```
 
 ## Linting your cassettes (v2)
 
