@@ -89,7 +89,7 @@ def _match_config(marker_kwargs: dict[str, Any]) -> MatchConfig:
     )
 
 
-if pytest is not None:
+if pytest is not None:  # pragma: no branch — pytest is always present in the test env
 
     @pytest.fixture
     def mcp_cassette(request: FixtureRequest, tmp_path: Path) -> Any:

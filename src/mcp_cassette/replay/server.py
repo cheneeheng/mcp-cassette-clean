@@ -188,7 +188,7 @@ class ReplayServer:
             strategy = fault.params.get("strategy", "truncate")
             await out.send(make_malformed_line(response_obj, strategy))
             await self._emit_notifications(notifications, out)
-        elif ftype == "disconnect":
+        elif ftype == "disconnect":  # pragma: no branch — FaultType is exhaustive
             if fault.params.get("after_response", False):
                 await self._send(out, response_obj)
             raise _Disconnect

@@ -91,6 +91,39 @@ def test_noisy_stdout_recorded_as_raw(tmp_path: Path) -> None:
     assert any("not JSON-RPC" in str(m.payload) for m in raw)
 
 
+def test_record_redact_flags_plumbed_through(tmp_path: Path) -> None:
+    # end-to-end: custom rules (both `=` and bare-glob forms) reach the recorder,
+    # and --no-default-redactions switches the default set off
+    cassette = tmp_path / "demo.json"
+    cmd = [
+        sys.executable,
+        "-m",
+        "mcp_cassette",
+        "record",
+        "--cassette",
+        str(cassette),
+        "--redact",
+        "text=SCRUBBED",
+        "--redact",
+        "*planted*",
+        "--no-default-redactions",
+        "--",
+        *reference_server_cmd(),
+    ]
+    messages = [
+        *initialize_sequence(),
+        tool_call(2, "echo", {"text": "hush", "planted_field": "x", "api_key": "sk-1"}),
+    ]
+    result = run_session(cmd, messages)
+    assert result.returncode == 0
+
+    text = json.dumps([m.model_dump() for m in Cassette.load(cassette).messages])
+    # custom `=` rule applied with its replacement (key-based: only "text" keys)
+    assert '"text": "SCRUBBED"' in text
+    assert '"planted_field": "REDACTED"' in text  # bare glob form
+    assert '"api_key": "sk-1"' in text  # defaults disabled: api_key survives
+
+
 def test_partial_session_still_valid(tmp_path: Path) -> None:
     # Client sends only the handshake then closes stdin: the graceful shutdown path
     # still finalizes a valid, loadable cassette.

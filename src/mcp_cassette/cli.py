@@ -110,8 +110,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_serve(args)
     if args.command == "inspect":
         return _cmd_inspect(args)
-    parser.error(f"unknown command {args.command}")
-    return 2
+    parser.error(f"unknown command {args.command}")  # pragma: no cover
+    return 2  # pragma: no cover — required subparsers reject unknown commands
 
 
 def _split_server_cmd(argv: list[str]) -> tuple[list[str], list[str]]:

@@ -172,11 +172,11 @@ def _payload_obj(message: Message) -> dict[str, Any]:
 def _delete_pointer(root: Any, pointer: str) -> None:
     if not pointer.startswith("/"):
         # Bare token: treat as a top-level key for convenience.
-        if isinstance(root, dict):
+        if isinstance(root, dict):  # pragma: no branch — root is always the request obj
             root.pop(pointer, None)
         return
     tokens = [p.replace("~1", "/").replace("~0", "~") for p in pointer.split("/")[1:]]
-    if not tokens:
+    if not tokens:  # pragma: no cover — a "/"-prefixed pointer splits into >=1 token
         return
     node = root
     for token in tokens[:-1]:

@@ -43,6 +43,7 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.11",
     "mcp>=1.0",
+    "coverage>=7.10",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -65,3 +66,21 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["tests"]
+
+[tool.coverage.run]
+source = ["mcp_cassette"]
+branch = true
+parallel = true
+patch = ["subprocess"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    'if __name__ == "__main__":',
+]
+# The only lines below 100% are the POSIX-only interrupt paths in record/proxy.py,
+# which Windows runs cannot execute (and vice-versa nothing is Windows-only thanks to
+# the in-process shutdown tests). 99 holds on every OS in the CI matrix.
+fail_under = 99

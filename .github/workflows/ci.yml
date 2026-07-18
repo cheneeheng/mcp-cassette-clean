@@ -40,4 +40,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: uv sync
-      - run: uv run pytest -q
+      # Subprocess-patched coverage (see [tool.coverage.run] in pyproject.toml):
+      # record/replay engines run as subprocesses, so plain pytest-under-coverage
+      # would miss most of the codebase. combine merges the per-process data files;
+      # report enforces the fail_under gate.
+      - run: uv run coverage run -m pytest -q
+      - run: uv run coverage combine
+      - run: uv run coverage report

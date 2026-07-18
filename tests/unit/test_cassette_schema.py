@@ -109,6 +109,75 @@ def test_redaction_leaves_raw_string_untouched() -> None:
     assert changed is False
 
 
+def test_redaction_rule_apply_on_raw_string_is_noop() -> None:
+    rule = RedactionRule(locator="*token*")
+    assert rule.apply("raw line, not json") == "raw line, not json"
+
+
+def test_apply_redactions_with_pointer_rule() -> None:
+    rules = [RedactionRule(locator="/result/secret")]
+    redacted, changed = apply_redactions({"result": {"secret": "x"}}, rules)
+    assert changed is True
+    assert redacted["result"]["secret"] == "REDACTED"
+
+
+def test_pointer_through_missing_intermediate_is_noop() -> None:
+    rule = RedactionRule(locator="/result/missing/deep")
+    payload = {"result": {}}
+    out, changed = apply_redactions(payload, [rule])
+    assert changed is False
+    assert out == payload
+
+
+def test_pointer_stepping_through_scalar_is_noop() -> None:
+    rule = RedactionRule(locator="/result/text/inner/deep")
+    out, changed = apply_redactions({"result": {"text": "plain"}}, [rule])
+    assert changed is False
+    assert out == {"result": {"text": "plain"}}
+
+
+def test_key_glob_recurses_into_lists() -> None:
+    payload = {"result": {"content": [{"api_key": "sk-1"}, {"plain": "x"}]}}
+    out, changed = apply_redactions(payload, default_redaction_rules())
+    assert changed is True
+    assert out["result"]["content"][0]["api_key"] == "REDACTED"
+    assert out["result"]["content"][1]["plain"] == "x"
+
+
+def test_pointer_to_missing_dict_key_is_noop() -> None:
+    rule = RedactionRule(locator="/result/nope")
+    out, changed = apply_redactions({"result": {}}, [rule])
+    assert changed is False
+    assert out == {"result": {}}
+
+
+def test_pointer_replaces_list_element() -> None:
+    rule = RedactionRule(locator="/result/content/1")
+    out, changed = apply_redactions({"result": {"content": ["a", "b"]}}, [rule])
+    assert changed is True
+    assert out["result"]["content"] == ["a", "REDACTED"]
+
+
+def test_pointer_list_index_out_of_range_is_noop() -> None:
+    rule = RedactionRule(locator="/result/content/9")
+    out, changed = apply_redactions({"result": {"content": ["a"]}}, [rule])
+    assert changed is False
+    assert out["result"]["content"] == ["a"]
+
+
+def test_pointer_non_numeric_list_token_is_noop() -> None:
+    rule = RedactionRule(locator="/result/content/abc")
+    out, changed = apply_redactions({"result": {"content": ["a"]}}, [rule])
+    assert changed is False
+
+
+def test_empty_pointer_is_noop() -> None:
+    # "" is not a valid pointer; _redact_pointer treats no-tokens as no-op
+    from mcp_cassette.cassette import _redact_pointer
+
+    assert _redact_pointer({"a": 1}, "", "REDACTED") is False
+
+
 def test_fault_constructors() -> None:
     assert Fault.timeout("tools/call", nth=2).type == "timeout"
     assert Fault.timeout("tools/call", nth=2).target.nth == 2

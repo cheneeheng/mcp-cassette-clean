@@ -13,14 +13,15 @@ Tooling is `uv`. The `mcp` SDK is a dev-only dependency (used by the reference s
 ```
 uv sync                                  # install deps + dev group
 uv run pytest                            # run the whole suite
-uv run pytest tests/test_replay.py       # one file
-uv run pytest tests/test_replay.py::test_name -x   # one test, stop on first failure
+uv run pytest tests/unit                 # one layer (also: tests/integration, tests/system)
+uv run pytest tests/integration/test_replay.py       # one file
+uv run pytest tests/integration/test_replay.py::test_name -x   # one test, stop on first failure
 uv run ruff check .                      # lint (also: ruff format .)
 uv run mypy src                          # type-check (strict mode is on)
 uv build                                 # build wheel + sdist
 ```
 
-Integration tests spawn subprocesses that run the reference server and the proxy/replay server. They shell out to `sys.executable`, so run them through `uv run` so the subprocess inherits the venv.
+Tests are layered: `tests/unit` (in-process, no subprocesses), `tests/integration` (subprocess round-trips against the reference server / proxy / replay server), `tests/system` (pytest-plugin fixture flows, partly via pytester). Shared helpers (`scripted_client.py`, `reference_server/`) live at the `tests/` root, importable from any layer via the `pythonpath` pytest ini setting; test basenames must stay unique across layers (no `__init__.py` files). Integration tests shell out to `sys.executable`, so run them through `uv run` so the subprocess inherits the venv.
 
 Platform note: Linux, macOS, and Windows are supported (CI runs the suite on all three; see ITER_05). Proxy shutdown is signal-driven: on POSIX via `anyio.open_signal_receiver` (SIGINT/SIGTERM) cancelling the task group; on Windows via a `signal.signal` SIGINT/SIGBREAK handler that `_watch_signals_windows` polls (asyncio has no `add_signal_handler` there). The Windows path can't cancel the stdin-read worker thread (no EINTR), so on interrupt it terminates the child, finalizes, and `os._exit(130)` rather than unwinding the task group. Both paths finalize the cassette and exit 130; off the main thread, where no handler can be installed, shutdown degrades to EOF-driven. SIGTERM has no graceful-finalize semantics on Windows — `test_ctrl_break_finalizes_cassette` (CTRL_BREAK_EVENT) is the win32 counterpart to the POSIX-only `test_sigterm_finalizes_cassette`; it needs a real console to deliver the event, so it skips (never hangs) under launchers like `uv run` that run without one.
 

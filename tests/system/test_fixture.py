@@ -1,4 +1,7 @@
-"""Fixture / CassetteSession tests (ITER_03 §04): modes, commands, finalize."""
+"""System tests (ITER_03 §04): full fixture flows and plugin wiring.
+
+Unit tests for mode resolution / command building live in tests/unit/test_session.py.
+"""
 
 from __future__ import annotations
 
@@ -13,10 +16,7 @@ from scripted_client import (
 )
 
 from mcp_cassette.cassette import Cassette
-from mcp_cassette.report import write_report
-from mcp_cassette.session import CassetteError, CassetteSession
-
-# --- Unit: mode resolution and command building -----------------------------------
+from mcp_cassette.session import CassetteSession
 
 
 def _session(mode: str, cassette: Path, tmp: Path) -> CassetteSession:
@@ -27,57 +27,7 @@ def _session(mode: str, cassette: Path, tmp: Path) -> CassetteSession:
     )
 
 
-def test_all_mode_builds_record_command(tmp_path: Path) -> None:
-    session = _session("all", tmp_path / "c.mcp.json", tmp_path)
-    cmd = session.server_command(["python", "server.py"])
-    assert "record" in cmd
-    assert "--cassette" in cmd
-    assert cmd[-2:] == ["python", "server.py"]
-
-
-def test_once_replays_when_cassette_present(tmp_path: Path) -> None:
-    cassette = tmp_path / "c.mcp.json"
-    cassette.write_text("{}", encoding="utf-8")
-    session = _session("once", cassette, tmp_path)
-    cmd = session.server_command(["python", "server.py"])
-    assert "serve" in cmd
-    assert "record" not in cmd
-
-
-def test_none_without_cassette_raises(tmp_path: Path) -> None:
-    session = _session("none", tmp_path / "missing.mcp.json", tmp_path)
-    with pytest.raises(CassetteError, match="recording is forbidden"):
-        session.server_command(["python", "server.py"])
-
-
-def test_with_faults_under_recording_fails_fast(tmp_path: Path) -> None:
-    from mcp_cassette.cassette import Fault
-
-    session = _session("all", tmp_path / "c.mcp.json", tmp_path)
-    faulted = session.with_faults(Fault.timeout("tools/call"))
-    with pytest.raises(CassetteError, match="replay only"):
-        faulted.server_command(["python", "server.py"])
-
-
-def test_finalize_flags_empty_recording(tmp_path: Path) -> None:
-    session = _session("all", tmp_path / "c.mcp.json", tmp_path)
-    session.server_command(["python", "server.py"])  # sets action=record
-    write_report(str(session.report_path), {"messages": 0})
-    with pytest.raises(CassetteError, match="zero messages"):
-        session.finalize()
-
-
-def test_finalize_flags_replay_misses(tmp_path: Path) -> None:
-    cassette = tmp_path / "c.mcp.json"
-    cassette.write_text("{}", encoding="utf-8")
-    session = _session("once", cassette, tmp_path)
-    session.server_command(["python", "server.py"])  # sets action=replay
-    write_report(str(session.report_path), {"misses": ["tools/call params={}"]})
-    with pytest.raises(CassetteError, match="unmatched"):
-        session.finalize()
-
-
-# --- Integration: once records then replays ---------------------------------------
+# --- once records then replays ------------------------------------------------------
 
 
 def test_once_records_then_replays(tmp_path: Path) -> None:
