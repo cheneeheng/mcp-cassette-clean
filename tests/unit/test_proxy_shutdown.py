@@ -148,10 +148,10 @@ def test_watch_signals_platform_dispatch(
                 signal.raise_signal(sig)
 
             tg.start_soon(trigger)
-            tg.start_soon(proxy._watch_signals, tg.cancel_scope, process)  # noqa: SLF001
+            tg.start_soon(proxy._watch_signals, process)  # noqa: SLF001
 
     anyio.run(run)
-    if sys.platform == "win32":
-        assert exits == [130]
-    else:
-        assert exits == []  # receiver path: cancellation only, no hard exit
+    # Both paths hard-exit 130: neither the anyio receiver nor the Windows poller can
+    # cancel the un-cancellable stdin worker-thread read, so both terminate and exit.
+    assert exits == [130]
+    assert process.terminated is True

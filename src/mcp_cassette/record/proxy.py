@@ -72,34 +72,23 @@ class StdioRecordingProxy:
                 client_in = stdin_stream()
                 client_out = stdout_stream()
                 our_err = stderr_stream()
-                try:
-                    async with anyio.create_task_group() as tg:
-                        tg.start_soon(self._watch_signals, tg.cancel_scope, process)
-                        tg.start_soon(self._client_to_server, client_in, process.stdin)
-                        tg.start_soon(
-                            self._server_to_client,
-                            process.stdout,
-                            client_out,
-                            tg.cancel_scope,
-                        )
-                        tg.start_soon(self._forward_stderr, process.stderr, our_err)
-                except anyio.get_cancelled_exc_class():
-                    pass
-                if self._signal_received:
-                    # The signal was delivered to us, not the child. Stop the child so
-                    # its pipes close and process.wait() returns instead of hanging on a
-                    # server that never saw the signal (it only reaches the whole group
-                    # for a terminal Ctrl+C, not a targeted SIGTERM).
-                    with anyio.CancelScope(shield=True):
-                        try:
-                            process.terminate()
-                        except (ProcessLookupError, OSError):
-                            pass
+                async with anyio.create_task_group() as tg:
+                    tg.start_soon(self._watch_signals, process)
+                    tg.start_soon(self._client_to_server, client_in, process.stdin)
+                    tg.start_soon(
+                        self._server_to_client,
+                        process.stdout,
+                        client_out,
+                        tg.cancel_scope,
+                    )
+                    tg.start_soon(self._forward_stderr, process.stderr, our_err)
                 await process.wait()
                 exit_code = process.returncode or 0
         finally:
+            # Reached only on the normal (server-EOF) path; an interrupt hard-exits
+            # from the signal watcher before unwinding here (see _interrupt_shutdown).
             self._finalize()
-        return 130 if self._signal_received else exit_code
+        return exit_code
 
     async def _client_to_server(
         self, source: ByteReceiveStream, dest: ByteSendStream
@@ -125,14 +114,11 @@ class StdioRecordingProxy:
     ) -> None:
         await pump_lines(source, dest, tap=None)
 
-    async def _watch_signals(
-        self, cancel_scope: anyio.CancelScope, process: Process
-    ) -> None:
+    async def _watch_signals(self, process: Process) -> None:
         try:
             with anyio.open_signal_receiver(signal.SIGINT, signal.SIGTERM) as signals:
                 async for _ in signals:
-                    self._signal_received = True
-                    cancel_scope.cancel()
+                    self._interrupt_shutdown(process)
                     return
         except (NotImplementedError, ValueError):
             # asyncio has no add_signal_handler on Windows; fall back to a plain
@@ -164,9 +150,20 @@ class StdioRecordingProxy:
             await anyio.sleep_forever()
         while not self._signal_received:
             await anyio.sleep(0.1)
-        # Windows cannot interrupt the worker thread blocked in our stdin read (no
-        # EINTR), so a clean task-group unwind would hang. Stop the child, finalize the
-        # cassette, then hard-exit — the un-joinable stdin thread dies with the process.
+        self._interrupt_shutdown(process)
+
+    def _interrupt_shutdown(self, process: Process) -> None:
+        """Terminate the child, finalize the cassette, and hard-exit with code 130.
+
+        The client's stdin read runs in an un-cancellable worker thread on every
+        platform (anyio ``FileReadStream`` reads via a worker thread), so a targeted
+        SIGINT/SIGTERM cannot interrupt it and a task-group unwind would hang waiting
+        on it. Stop the child so its pipes close, persist whatever was captured, then
+        exit without joining that thread — it dies with the process.
+
+        Args:
+            process: The spawned server process to terminate.
+        """
         with anyio.CancelScope(shield=True):
             try:
                 process.terminate()
