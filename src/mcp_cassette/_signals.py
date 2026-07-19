@@ -25,7 +25,10 @@ async def wait_for_interrupt() -> None:
         with anyio.open_signal_receiver(signal.SIGINT, signal.SIGTERM) as signals:
             async for _ in signals:  # pragma: no branch — yields or raises, never ends
                 return
-    except (NotImplementedError, ValueError):
+    except (NotImplementedError, ValueError, RuntimeError):
+        # NotImplementedError: asyncio add_signal_handler on Windows. ValueError /
+        # RuntimeError ("set_wakeup_fd only works in main thread"): off the main thread
+        # on POSIX. Either way, degrade to the polling/owner-cancel path.
         await _wait_windows()
 
 
