@@ -133,15 +133,15 @@ unchanged).
 
 **Record.** Start the "remote" server, put the recording proxy in front of it, and
 send a session *through the proxy*. `--port` pins the proxy's port so the client
-knows where to go; `--max-idle 5` finalizes the cassette and exits the proxy after
-five quiet seconds, so no Ctrl+C is needed — just don't dawdle before sending
+knows where to go; `--max-idle 30` finalizes the cassette and exits the proxy after
+thirty quiet seconds, so no Ctrl+C is needed — just don't dawdle before sending
 traffic, or raise the value:
 
 ```bash
 python echo_http_server.py --port 8901 &                   # the "remote" server
 
 mcp-cassette record --cassette demo-http.mcp.json \
-  --url http://127.0.0.1:8901/mcp --port 8902 --max-idle 5 &
+  --url http://127.0.0.1:8901/mcp --port 8902 --max-idle 30 &
 # -> mcp-cassette: recording at http://127.0.0.1:8902/mcp -> point the agent there
 
 # simulate the agent: a scripted session against the PROXY (8902), not the server
@@ -153,7 +153,7 @@ for obj in run('http://127.0.0.1:8902/mcp',
     print(obj)
 "
 
-# ~5 idle seconds later the proxy exits and writes the cassette
+# ~30 idle seconds later the proxy exits and writes the cassette
 mcp-cassette inspect demo-http.mcp.json
 ```
 

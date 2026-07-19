@@ -216,3 +216,15 @@ POSIX CI legs. ruff and mypy --strict clean.
 **Decision:** Recorded a clean `tools.mcp.json` via the CLI pipe, then committed `injected.mcp.json` as an edited copy with one deliberately poisoned description (ASCII-only, matching three R001 patterns). README states it is a doctored copy and how to regenerate both. This also gives the R002 baseline-drift demo for free (clean vs poisoned pair).
 **Impact / Risk:** The injected cassette is hand-edited, not a genuine recording; documented as such.
 **Outcome:** `lint tools.mcp.json` exits 0; `lint injected.mcp.json` exits 4 (3x R001); with `--baseline` adds R002 with a unified diff.
+
+### Entry 15
+
+**Type:** Decision
+**Mode:** Autonomous
+**Timestamp:** 2026-07-19T00:00:00Z
+**Task:** Periodic crash-safety checkpoints during recording
+
+**Context:** Recording buffered the whole session in memory and wrote once on shutdown, so a hard kill lost everything. Two sub-decisions were unspecified: where checkpoints are written, and whether they are on by default.
+**Decision:** (a) Checkpoints go to a `<cassette>.partial` sidecar, never the cassette path. `CassetteSession._resolve_action` decides record-vs-replay by cassette file existence under `mode="once"`, so an in-place checkpoint left by a crash would be silently replayed as a complete recording — a correctness regression worse than the data loss it fixes. The sidecar is a valid cassette (inspectable, promotable by `mv`) and is unlinked on finalize. (b) Default ON at 5.0s (`--checkpoint-interval`, 0 disables), because data-loss handling is not something to leave opt-in. (c) HTTP checkpoints are gated on `_upstream_ok`, preserving ITER_01_v2's "no cassette file for a first-contact failure" rule.
+**Impact / Risk:** Recording now touches disk periodically (only when new messages arrived). A crashed run leaves a `.partial` file the user must promote by hand — deliberate, so no truncated cassette is ever mistaken for a finished one.
+**Outcome:** Verified by hard-killing a stdio recording mid-session: cassette absent, `.partial` holds the traffic. ruff + mypy strict clean; tests/unit/test_proxy_shutdown.py + tests/integration green (61 passed, 3 skipped).

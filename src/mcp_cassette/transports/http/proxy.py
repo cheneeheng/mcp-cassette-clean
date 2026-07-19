@@ -20,7 +20,9 @@ import anyio.abc
 import httpx
 
 from ..._signals import wait_for_interrupt
-from ...cassette import Channel, RedactionRule, default_redaction_rules
+from ...cassette import Cassette, Channel, RedactionRule, default_redaction_rules
+from ...record import checkpoint
+from ...record.checkpoint import DEFAULT_CHECKPOINT_INTERVAL
 from ...record.recorder import SessionRecorder
 from ...report import write_report
 from . import wire
@@ -63,6 +65,7 @@ class RecordingProxy:
         port: int = 0,
         report_path: str | None = None,
         max_idle: float | None = None,
+        checkpoint_interval: float | None = DEFAULT_CHECKPOINT_INTERVAL,
     ) -> None:
         """Initialize the proxy.
 
@@ -75,11 +78,14 @@ class RecordingProxy:
             report_path: Optional path for a JSON session report (message count).
             max_idle: End the recording after this many seconds without client
                 activity (the unattended-CI escape hatch; default off).
+            checkpoint_interval: Seconds between crash-safety checkpoints to
+                ``<cassette>.partial``; ``None`` or non-positive disables them.
         """
         self.server_url = server_url
         self.cassette_path = cassette_path
         self.report_path = report_path
         self.max_idle = max_idle
+        self.checkpoint_interval = checkpoint_interval
         self._port = port
         rules: list[RedactionRule] = []
         if include_default_redactions:
@@ -157,10 +163,27 @@ class RecordingProxy:
                 )
                 self.bound_url = f"http://127.0.0.1:{port}/mcp"
                 task_status.started(self.bound_url)
+                tg.start_soon(
+                    checkpoint.run,
+                    self.checkpoint_interval,
+                    self._snapshot,
+                    self.cassette_path,
+                )
         finally:
             with anyio.CancelScope(shield=True):
                 await self._client.aclose()
                 self.finalize()
+
+    def _snapshot(self) -> Cassette | None:
+        # No file may exist for a session that never reached the upstream — a cassette
+        # of nothing but a failed connect is noise, checkpoints included.
+        if not self._upstream_ok or self._recorder.message_count == 0:
+            return None
+        return self._recorder.build(
+            transport="http",
+            server_url=self.server_url,
+            session_id=self._session_id,
+        )
 
     def finalize(self) -> None:
         """Write the cassette (and report) once; skipped after a first-contact error."""
@@ -168,6 +191,7 @@ class RecordingProxy:
             return
         self._finalized = True
         if self._fatal is not None:
+            checkpoint.discard(self.cassette_path)
             return
         cassette = self._recorder.build(
             transport="http",
@@ -175,6 +199,7 @@ class RecordingProxy:
             session_id=self._session_id,
         )
         cassette.save(self.cassette_path)
+        checkpoint.discard(self.cassette_path)
         if self.report_path is not None:
             write_report(self.report_path, {"messages": self._recorder.message_count})
 

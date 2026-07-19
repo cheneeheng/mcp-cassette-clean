@@ -24,6 +24,7 @@ from .cassette import (
 )
 from .lint import run_with_notes
 from .matching import Matcher
+from .record.checkpoint import DEFAULT_CHECKPOINT_INTERVAL
 from .record.proxy import StdioRecordingProxy
 from .replay.faults import Injector
 from .replay.new_episodes import NewEpisodesProxy
@@ -64,6 +65,17 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "End the recording after this much client inactivity — the "
             "unattended-CI escape hatch (default: off; recording ends on signal)."
+        ),
+    )
+    rec.add_argument(
+        "--checkpoint-interval",
+        type=float,
+        default=DEFAULT_CHECKPOINT_INTERVAL,
+        metavar="SECONDS",
+        help=(
+            f"Seconds between crash-safety checkpoints to <cassette>.partial "
+            f"(default: {DEFAULT_CHECKPOINT_INTERVAL:g}; 0 disables). A kill loses "
+            "only what arrived since the last checkpoint."
         ),
     )
     rec.add_argument(
@@ -244,6 +256,7 @@ def _cmd_record(args: argparse.Namespace) -> int:
             port=args.port,
             report_path=args.report,
             max_idle=args.max_idle,
+            checkpoint_interval=args.checkpoint_interval,
         ).run()
     proxy = StdioRecordingProxy(
         server_cmd=server_cmd,
@@ -251,6 +264,7 @@ def _cmd_record(args: argparse.Namespace) -> int:
         redaction=[_parse_redaction(s) for s in args.redact],
         include_default_redactions=not args.no_default_redactions,
         report_path=args.report,
+        checkpoint_interval=args.checkpoint_interval,
     )
     return proxy.run()
 
