@@ -1,0 +1,87 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mcp-cassette"
+version = "0.1.0"
+description = "Record/replay and mocking for MCP (Model Context Protocol) agent test suites — vcrpy for MCP."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE" }
+authors = [{ name = "EeHeng Chen", email = "eeheng.chen@gmail.com" }]
+keywords = ["mcp", "testing", "record-replay", "vcr", "pytest", "mock"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: Pytest",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Testing",
+]
+dependencies = [
+    "anyio>=4.0",
+    "pydantic>=2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/cheneeheng/mcp-cassette"
+Repository = "https://github.com/cheneeheng/mcp-cassette"
+
+[project.scripts]
+mcp-cassette = "mcp_cassette.cli:main"
+
+[project.entry-points.pytest11]
+mcp_cassette = "mcp_cassette.pytest_plugin"
+
+[project.optional-dependencies]
+test = ["pytest>=8.0"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "mcp>=1.0",
+    "coverage>=7.10",
+    "pre-commit>=4.6.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcp_cassette"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "W"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+
+[[tool.mypy.overrides]]
+module = "mcp.*"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+
+[tool.coverage.run]
+source = ["mcp_cassette"]
+branch = true
+parallel = true
+patch = ["subprocess"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    'if __name__ == "__main__":',
+]
+# The only lines below 100% are the POSIX-only interrupt paths in record/proxy.py,
+# which Windows runs cannot execute (and vice-versa nothing is Windows-only thanks to
+# the in-process shutdown tests). 99 holds on every OS in the CI matrix.
+fail_under = 99
