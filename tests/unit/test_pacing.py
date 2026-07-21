@@ -71,17 +71,19 @@ def test_disabled_wait_never_reads_the_clock(monkeypatch: pytest.MonkeyPatch) ->
     anyio.run(Pacer().wait, _msg(0, 0), _msg(1, 5000))
 
 
-def test_enabled_wait_sleeps_the_gap() -> None:
+def test_enabled_wait_sleeps_the_computed_gap(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Assert on the seconds handed to anyio.sleep, not on measured wall time: any
+    # interval short enough to keep a unit test fast is at or below the Windows
+    # clock granularity, so the measurement flakes while proving nothing extra.
+    # Real elapsed time is proven in the integration layer, with generous bounds.
     slept: list[float] = []
 
-    async def scenario() -> None:
-        pacer = _pacer(scale=0.001)
-        start = anyio.current_time()
-        await pacer.wait(_msg(0, 0), _msg(1, 300))
-        slept.append(anyio.current_time() - start)
+    async def record(seconds: float) -> None:
+        slept.append(seconds)
 
-    anyio.run(scenario)
-    assert slept[0] >= 0.0003
+    monkeypatch.setattr(anyio, "sleep", record)
+    anyio.run(_pacer(scale=0.5).wait, _msg(0, 100), _msg(1, 500))
+    assert slept == [pytest.approx(0.2)]
 
 
 def test_enabled_wait_with_a_zero_gap_does_not_sleep(
